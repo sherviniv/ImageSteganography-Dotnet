@@ -3,6 +3,7 @@
 namespace ImageSteganography.Models;
 public record EncodeImageRequest
 {
+    public long ChatId { get; set; }
     public string? Key { get; set; }
     public required IFormFile Image { get; set; }
     public ImageEncodeLevel EncodeLevel { get; set; }

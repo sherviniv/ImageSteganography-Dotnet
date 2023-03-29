@@ -1,4 +1,6 @@
 using ImageSteganography.Services;
+using ImageSteganography.Telegram;
+using Microsoft.Extensions.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,7 +11,8 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<ImageSteganographyService>();
-
+var telegramCient = new TelegramCientService(builder.Configuration["TelgeramBotKey"]!);
+_ = telegramCient.ConfigureTelegramCient();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
