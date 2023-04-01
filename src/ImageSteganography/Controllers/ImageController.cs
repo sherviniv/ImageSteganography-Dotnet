@@ -23,9 +23,9 @@ public class ImageController : ControllerBase
     {
         var response = await _imageSteganographyService.EncodeImageAsync(request);
 
-        FileContentResult file = new FileContentResult(response.EncodedImage, "application/octet-stream")
+        FileContentResult file = new FileContentResult(/*response.EncodedImage*/ default, "application/octet-stream")
         {
-            FileDownloadName = DateTime.Now.ToString() + request.Image.FileName
+            FileDownloadName = DateTime.Now.ToString() /*+ request.Image.FileName*/
         };
 
         return file;

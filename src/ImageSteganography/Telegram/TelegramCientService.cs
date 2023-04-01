@@ -5,10 +5,9 @@ using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types;
 using ImageSteganography.Services;
 using ImageSteganography.Models;
-using System.Threading;
+using Telegram.Bot.Types.InputFiles;
 
 namespace ImageSteganography.Telegram;
-
 public class TelegramCientService
 {
     private readonly List<EncodeImageRequest> requests = new List<EncodeImageRequest>();
@@ -58,10 +57,16 @@ public class TelegramCientService
         //if (message.Text is not { } messageText)
         //    return;
         //Console.WriteLine($"Received a '{messageText}' message in chat {chatId}.");
-
-        if(message.Type == MessageType.Photo) 
+        if (update.Message!.Type == MessageType.Document)
         {
-        
+            await HandleDecodeCommand(botClient, update, cancellationToken);
+            return;
+        }
+
+        if (update.Message!.Type == MessageType.Photo)
+        {
+            await HandleEncodeCommand(botClient, update, cancellationToken);
+            return;
         }
 
         if (message.Text is not { } messageText)
@@ -77,6 +82,8 @@ public class TelegramCientService
                 await HandleHelpCommand(botClient, update, cancellationToken);
                 break;
             case "/encode":
+            case "/cancel":
+            case "/done":
                 await HandleEncodeCommand(botClient, update, cancellationToken);
                 break;
 
@@ -87,13 +94,99 @@ public class TelegramCientService
                 cancellationToken: cancellationToken);
                 break;
         }
-
-
     }
 
-    async Task HandleEncodeCommand(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken) 
+    async Task HandleEncodeCommand(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
     {
-       if(requests.)
+        var activeRequest = requests.FirstOrDefault(c => c.ChatId == update.Message!.Chat.Id);
+        string content = string.Empty;
+
+        if (activeRequest == null && update.Message?.Text?.ToLower() != "/encode")
+        {
+            content = "Enter /encode to Start.";
+            await botClient.SendTextMessageAsync(
+            chatId: update.Message!.Chat.Id,
+            text: content,
+            cancellationToken: cancellationToken);
+            return;
+        }
+
+        if (update.Message?.Text?.ToLower() == "/encode")
+        {
+            requests.Add(new EncodeImageRequest()
+            {
+                ChatId = update.Message!.Chat.Id,
+            });
+            content = "Encoding started, Please upload your image with caption.\nEnter /cancel for canceling the operation.";
+            await botClient.SendTextMessageAsync(
+                  chatId: update.Message!.Chat.Id,
+                  text: content,
+                  cancellationToken: cancellationToken);
+            return;
+        }
+
+        if (update.Message?.Text?.ToLower() == "/cancel")
+        {
+            requests.Remove(activeRequest!);
+            content = "Canceled.";
+            await botClient.SendTextMessageAsync(
+                  chatId: update.Message!.Chat.Id,
+                  text: content,
+                  cancellationToken: cancellationToken);
+            return;
+        }
+
+        if (update.Message!.Type == MessageType.Photo)
+        {
+            if (string.IsNullOrEmpty(update.Message.Caption))
+            {
+                content = "Please upload your image with caption.";
+                Message sentMessage = await botClient.SendTextMessageAsync(
+                                            chatId: update.Message!.Chat.Id,
+                                            text: content,
+                                            cancellationToken: cancellationToken);
+                return;
+            }
+            else
+            {
+                activeRequest.Image = new System.IO.MemoryStream();
+                var photo = update!.Message!.Photo[^1]!;
+                var file = await botClient.GetFileAsync(photo.FileId);
+                await botClient.DownloadFileAsync(file!.FilePath!, activeRequest!.Image, cancellationToken);
+                activeRequest!.Content = update.Message.Caption;
+                activeRequest!.Unicode = true;
+                _ =  botClient.SendTextMessageAsync(
+                                            chatId: update.Message!.Chat.Id,
+                                            text: "Start encoding ...",
+                                            cancellationToken: cancellationToken);
+                var result = await _imageSteganographyService.EncodeImageAsync(activeRequest);
+                InputOnlineFile encodedPicutre = new(result.EncodedImage, DateTime.Now.ToString() + ".png");
+                Message sentMessage = await botClient.SendDocumentAsync(
+                                            chatId: update.Message!.Chat.Id,
+                                            encodedPicutre,
+                                            cancellationToken: cancellationToken);
+                requests.Remove(activeRequest!);
+                return;
+            }
+        }
+    }
+
+    async Task HandleDecodeCommand(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
+    {
+        DecodeImageRequest request = new() { Unicode = true };
+        request.Image = new System.IO.MemoryStream();
+        var photo = update!.Message!.Document!;
+        var file = await botClient.GetFileAsync(photo.FileId);
+        _ = botClient.SendTextMessageAsync(
+                     chatId: update.Message!.Chat.Id,
+                     text: "Start decoding ...",
+                     cancellationToken: cancellationToken);
+        await botClient.DownloadFileAsync(file!.FilePath!, request!.Image, cancellationToken);
+        var result = await _imageSteganographyService.DecodeImage(request);
+        Message sentMessage = await botClient.SendTextMessageAsync(
+        chatId: update.Message!.Chat.Id,
+        text: result,
+        cancellationToken: cancellationToken);
     }
 
     async Task HandleStartCommand(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
@@ -112,7 +205,7 @@ public class TelegramCientService
             {"/start","Displays bot information" },
             {"/help","Displays bot commands" },
             {"/encode","Hides content in the given photo." },
-            {"/decode","extract content in the given photo." },
+            {"Upload document","extract content in the given photo." },
         };
         string content = $"Commands:\n{string.Join("\n", commands.Select(kv => $"{kv.Key} : {kv.Value}"))}";
         Message sentMessage = await botClient.SendTextMessageAsync(
@@ -133,5 +226,4 @@ public class TelegramCientService
         Console.WriteLine(ErrorMessage);
         return Task.CompletedTask;
     }
-
 }

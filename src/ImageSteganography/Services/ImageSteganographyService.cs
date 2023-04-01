@@ -20,10 +20,7 @@ public class ImageSteganographyService
     {
         string content = _startPoint + request.Content + _endPoint;
 
-        using var memoryStream = new MemoryStream();
-        await request.Image.CopyToAsync(memoryStream);
-
-        var image = new Bitmap(memoryStream);
+        var image = new Bitmap(request.Image);
         var bmp = (Bitmap)image.Clone();
 
         //Textbit need to fill within parts cause its more faster
@@ -80,15 +77,14 @@ public class ImageSteganographyService
         ms.Seek(0, SeekOrigin.Begin);
         return new EncodeImageResponse()
         {
-            EncodedImage = ms.ToArray(),
+            EncodedImage = ms
         };
     }
 
     public async Task<string> DecodeImage(DecodeImageRequest request)
     {
-        using var memoryStream = new MemoryStream();
-        await request.Image.CopyToAsync(memoryStream);
-        Bitmap img = new Bitmap(memoryStream);
+        await request.Image.CopyToAsync(request.Image);
+        Bitmap img = new Bitmap(request.Image);
 
         //holds the new bits extract from image
         string bits = "";
@@ -108,6 +104,7 @@ public class ImageSteganographyService
                 {
                     //nothin in the picture
                     shouldBreak = true;
+                    extractedtext = "No content found, Please send image with original format as file.";
                     break;
                 }
 
@@ -145,5 +142,4 @@ public class ImageSteganographyService
 
         return extractedtext;
     }
-
 }

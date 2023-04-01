@@ -1,6 +1,6 @@
 ﻿namespace ImageSteganography.Models;
-public record DecodeImageRequest
+public class DecodeImageRequest
 {
-    public required IFormFile Image { get; set; }
+    public Stream Image { get; set; }
     public bool Unicode { get; set; }
 }
