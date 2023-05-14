@@ -1,6 +1,5 @@
 using ImageSteganography.Services;
 using ImageSteganography.Telegram;
-using Microsoft.Extensions.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 

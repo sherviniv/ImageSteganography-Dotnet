@@ -155,7 +155,7 @@ public class TelegramCientService
                 await botClient.DownloadFileAsync(file!.FilePath!, activeRequest!.Image, cancellationToken);
                 activeRequest!.Content = update.Message.Caption;
                 activeRequest!.Unicode = true;
-                _ =  botClient.SendTextMessageAsync(
+                _ = botClient.SendTextMessageAsync(
                                             chatId: update.Message!.Chat.Id,
                                             text: "Start encoding ...",
                                             cancellationToken: cancellationToken);
